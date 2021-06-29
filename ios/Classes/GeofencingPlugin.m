@@ -67,7 +67,10 @@ static BOOL backgroundIsolateRun = NO;
     result(@(YES));
   } else if ([@"GeofencingPlugin.removeGeofence" isEqualToString:call.method]) {
     result(@([self removeGeofence:arguments]));
-  } else {
+  } else if ([@"GeofencingPlugin.getRegisteredGeofenceIds" isEqualToString:call.method]) {
+      result([self getMonitoredRegionIds:arguments]);
+  }
+  else {
     result(FlutterMethodNotImplemented);
   }
 }
@@ -124,11 +127,13 @@ static BOOL backgroundIsolateRun = NO;
   NSAssert([region isKindOfClass:[CLCircularRegion class]], @"region must be CLCircularRegion");
   CLLocationCoordinate2D center = region.center;
   int64_t handle = [self getCallbackHandleForRegionId:region.identifier];
-  [_callbackChannel
-      invokeMethod:@""
-         arguments:@[
-           @(handle), @[ region.identifier ], @[ @(center.latitude), @(center.longitude) ], @(event)
-         ]];
+  if (handle != 0 && _callbackChannel != nil) {
+      [_callbackChannel
+       invokeMethod:@""
+        arguments:@[
+            @(handle), @[ region.identifier ], @[ @(center.latitude), @(center.longitude) ], @(event)
+        ]];
+  }
 }
 
 - (instancetype)init:(NSObject<FlutterPluginRegistrar> *)registrar {
@@ -202,6 +207,14 @@ static BOOL backgroundIsolateRun = NO;
     }
   }
   return NO;
+}
+
+-(NSArray*)getMonitoredRegionIds:()arguments{
+    NSMutableArray *geofenceIds = [[NSMutableArray alloc] init];
+    for (CLRegion *region in [self->_locationManager monitoredRegions]) {
+        [geofenceIds addObject:region.identifier];
+    }
+    return [NSArray arrayWithArray:geofenceIds];
 }
 
 - (int64_t)getCallbackDispatcherHandle {
